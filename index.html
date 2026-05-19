@@ -72,7 +72,9 @@ const FontLink = () => (
       --card-bg: #FFFFFF; --bg: #F2EDE4;
     }
     body { background: var(--bg); font-family: 'Lora', serif; color: var(--ink);
-      -webkit-tap-highlight-color: transparent; }
+      -webkit-tap-highlight-color: transparent;
+      padding-top: max(1rem, env(safe-area-inset-top));
+}
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: var(--parchment); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
