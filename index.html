@@ -389,7 +389,7 @@ function bookColor(title) {
   return PALETTE[Math.abs(h) % PALETTE.length];
 }
 
-function BookCard({ book, onEdit, onDelete }) {
+function BookCard({ book, onEdit, onDelete, setBookMenu }) {
   const initial = book.title.charAt(0).toUpperCase();
   const color = bookColor(book.title);
   const chips = [book.genre, book.saga].filter(Boolean);
@@ -428,11 +428,28 @@ function BookCard({ book, onEdit, onDelete }) {
           </div>
         )}
       </div>
-      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"0.3rem",flexShrink:0}}>
-        <button onClick={()=>onEdit(book)} style={{background:"none",border:"none",cursor:"pointer",
-          color:"var(--muted)",fontSize:"0.9rem",padding:"0.15rem"}}>✏️</button>
-        <button onClick={()=>onDelete(book.id)} style={{background:"none",border:"none",cursor:"pointer",
-          color:"var(--muted)",fontSize:"0.9rem",padding:"0.15rem"}}>🗑️</button>
+      <div style={{position:"relative"}}>
+        <button onClick={()=>setBookMenu(setBookMenu===book.id?null:book.id)} style={{
+          background:"none",border:"none",cursor:"pointer",
+          color:"var(--muted)",fontSize:"1.2rem",padding:"0.15rem",lineHeight:1}}>⋮</button>
+        {setBookMenu===book.id&&(
+          <div style={{position:"absolute",top:"100%",right:0,background:"var(--card-bg)",
+            border:"1px solid var(--border)",borderRadius:8,overflow:"hidden",
+            boxShadow:"0 4px 12px rgba(28,22,17,0.15)",zIndex:50,minWidth:120}}>
+            <button onClick={()=>{onEdit(book);setBookMenu(null);}} style={{
+              width:"100%",padding:"0.6rem 1rem",background:"none",border:"none",cursor:"pointer",
+              textAlign:"left",fontSize:"0.9rem",color:"var(--ink)",borderBottom:"1px solid var(--border)",
+              fontFamily:"'Lora',serif",hover:{background:"var(--parchment)"}}}>
+              Modifica
+            </button>
+            <button onClick={()=>{onDelete(book.id);setBookMenu(null);}} style={{
+              width:"100%",padding:"0.6rem 1rem",background:"none",border:"none",cursor:"pointer",
+              textAlign:"left",fontSize:"0.9rem",color:"var(--burgundy)",
+              fontFamily:"'Lora',serif"}}>
+              Elimina
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -816,7 +833,7 @@ function LibrarySection({ books, onEdit, onDelete, onAdd, onCsvImport, onBackup,
         <div>
           <SectionHeader label="In lettura" count={reading.length}/>
           <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-            {sortBooks(reading,sortBy).map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete}/>)}
+            {sortBooks(reading,sortBy).map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete} setBookMenu={setBookMenu}/>)}
           </div>
         </div>
       )}
@@ -826,7 +843,7 @@ function LibrarySection({ books, onEdit, onDelete, onAdd, onCsvImport, onBackup,
         {read.length===0
           ?<EmptyRow label="Nessun libro letto"/>
           :<div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-            {sortBooks(read,sortBy).map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete}/>)}
+            {sortBooks(reading,sortBy).map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete} setBookMenu={setBookMenu}/>)}
           </div>
         }
       </div>
@@ -835,7 +852,7 @@ function LibrarySection({ books, onEdit, onDelete, onAdd, onCsvImport, onBackup,
         <div>
           <SectionHeader label="Abbandonati" count={abandoned.length}/>
           <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-            {sortBooks(abandoned,sortBy).map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete}/>)}
+            {sortBooks(reading,sortBy).map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete} setBookMenu={setBookMenu}/>)}
           </div>
         </div>
       )}
@@ -1034,6 +1051,7 @@ function BiblioTrack() {
   const [csvModal,  setCsvModal]   = useState(false);
   const [toast,     setToast]      = useState(null);
   const [lastBackup,setLastBackup] = useState(()=>loadLastBackup());
+  const [bookMenu, setBookMenu] = useState(null);
 
   const persist = useCallback(next=>{setBooks(next);saveBooks(next);},[]);
 
@@ -1101,7 +1119,7 @@ function BiblioTrack() {
                         fontStyle:"italic",fontSize:"inherit"}}>Aggiungine uno →</button>
                     </div>
                   :<div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-                    {reading.map(b=><BookCard key={b.id} book={b} onEdit={b=>setModal(b)} onDelete={deleteBook}/>)}
+                    {reading.map(b=><BookCard key={b.id} book={b} onEdit={b=>setModal(b)} onDelete={deleteBook} setBookMenu={setBookMenu}/>)}
                   </div>
                 }
               </div>
@@ -1132,7 +1150,7 @@ function BiblioTrack() {
                       fontStyle:"italic",fontSize:"inherit"}}>Aggiungine uno →</button>
                   </div>
                 :<div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-                    {wishlist.map(b=><BookCard key={b.id} book={b} onEdit={b=>setModal(b)} onDelete={deleteBook}/>)}
+                    {wishlist.map(b=><BookCard key={b.id} book={b} onEdit={b=>setModal(b)} onDelete={deleteBook} setBookMenu={setBookMenu}/>)}
                   </div>
               }
             </div>
@@ -1148,7 +1166,7 @@ function BiblioTrack() {
         </main>
 
         <button onClick={()=>setModal("add")} style={{
-          position:"fixed",bottom:"5.5rem",right:"1.25rem",
+          position:"fixed",bottom:"6.5rem",right:"1.25rem",
           width:52,height:52,borderRadius:"50%",
           background:"var(--burgundy)",border:"none",
           color:"#fff",fontSize:"1.5rem",cursor:"pointer",
