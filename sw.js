@@ -1,4 +1,4 @@
-const CACHE = "bibliotrack-v1.2.1";
+const CACHE = "bibliotrack-v3";
 const ASSETS = [
   "./",
   "./index.html",
