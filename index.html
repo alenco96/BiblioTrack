@@ -339,15 +339,15 @@ function BookForm({ initial, onSave, onCancel }) {
           </div>
         </div>
         {(form.status===STATUS.READING||form.status===STATUS.READ||form.status===STATUS.ABANDONED)&&(
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.75rem"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem"}}>
             <div>
               <span style={lbl}>Inizio lettura</span>
-              <input style={inp} type="date" value={form.startDate} onChange={e=>set("startDate",e.target.value)}/>
+              <input style={{...inp, padding:"0.65rem 0.75rem"}} type="date" value={form.startDate} onChange={e=>set("startDate",e.target.value)}/>
             </div>
             {(form.status===STATUS.READ||form.status===STATUS.ABANDONED)&&(
               <div>
                 <span style={lbl}>Fine lettura</span>
-                <input style={inp} type="date" value={form.endDate} onChange={e=>set("endDate",e.target.value)}/>
+                <input style={{...inp, padding:"0.65rem 0.75rem"}} type="date" value={form.endDate} onChange={e=>set("endDate",e.target.value)}/>
               </div>
             )}
           </div>
