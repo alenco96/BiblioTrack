@@ -342,12 +342,34 @@ function BookForm({ initial, onSave, onCancel }) {
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem"}}>
             <div>
               <span style={lbl}>Inizio lettura</span>
-              <input style={{...inp, padding:"0.5rem 0.7rem", fontSize:"0.85rem"}} type="date" value={form.startDate} onChange={e=>set("startDate",e.target.value)}/>
+              <input style={{
+                width:"100%",
+                padding:"0.4rem 0.5rem",
+                background:"var(--card-bg)",
+                border:"1px solid var(--border)",
+                borderRadius:8,
+                fontFamily:"'Lora',serif",
+                fontSize:"0.75rem",
+                color:"var(--ink)",
+                outline:"none",
+                height:"28px"
+              }} type="date" value={form.startDate} onChange={e=>set("startDate",e.target.value)}/>
             </div>
             {(form.status===STATUS.READ||form.status===STATUS.ABANDONED)&&(
               <div>
                 <span style={lbl}>Fine lettura</span>
-                <input style={{...inp, padding:"0.5rem 0.7rem", fontSize:"0.85rem"}} type="date" value={form.endDate} onChange={e=>set("endDate",e.target.value)}/>
+                <input style={{
+                  width:"100%",
+                  padding:"0.4rem 0.5rem",
+                  background:"var(--card-bg)",
+                  border:"1px solid var(--border)",
+                  borderRadius:8,
+                  fontFamily:"'Lora',serif",
+                  fontSize:"0.75rem",
+                  color:"var(--ink)",
+                  outline:"none",
+                  height:"28px"
+                }} type="date" value={form.endDate} onChange={e=>set("endDate",e.target.value)}/>
               </div>
             )}
           </div>
