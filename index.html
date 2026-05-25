@@ -22,10 +22,7 @@
 
   <style>
     html, body, #root { height: 100%; margin: 0; padding: 0; }
-    body { 
-      background: #F2EDE4; 
-      padding-top: max(1rem, env(safe-area-inset-top));
-    }
+    body { background: #F2EDE4; }
     #splash {
       position: fixed; inset: 0; background: #F2EDE4;
       display: flex; flex-direction: column;
@@ -259,8 +256,8 @@ function Modal({ open, onClose, children }) {
   );
 }
 
-function BookForm({ initial, onSave, onCancel }) {
-  const [form, setForm] = useState(initial || {
+function BookForm({ initial, onSave, onCancel, openLibraryData }) {
+  const [form, setForm] = useState(initial || openLibraryData || {
     title:"",author:"",genre:"",pages:"",status:STATUS.WISHLIST,
     startDate:"",endDate:"",rating:0,notes:"",saga:"",
   });
@@ -339,37 +336,15 @@ function BookForm({ initial, onSave, onCancel }) {
           </div>
         </div>
         {(form.status===STATUS.READING||form.status===STATUS.READ||form.status===STATUS.ABANDONED)&&(
-          <div style={{display:"grid",gridTemplateColumns:"1fr",gap:"0.5rem"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.75rem"}}>
             <div>
               <span style={lbl}>Inizio lettura</span>
-              <input style={{
-                width:"100%",
-                padding:"0.4rem 0.5rem",
-                background:"var(--card-bg)",
-                border:"1px solid var(--border)",
-                borderRadius:8,
-                fontFamily:"'Lora',serif",
-                fontSize:"0.75rem",
-                color:"var(--ink)",
-                outline:"none",
-                height:"28px"
-              }} type="date" value={form.startDate} onChange={e=>set("startDate",e.target.value)}/>
+              <input style={inp} type="date" value={form.startDate} onChange={e=>set("startDate",e.target.value)}/>
             </div>
             {(form.status===STATUS.READ||form.status===STATUS.ABANDONED)&&(
               <div>
                 <span style={lbl}>Fine lettura</span>
-                <input style={{
-                  width:"100%",
-                  padding:"0.4rem 0.5rem",
-                  background:"var(--card-bg)",
-                  border:"1px solid var(--border)",
-                  borderRadius:8,
-                  fontFamily:"'Lora',serif",
-                  fontSize:"0.75rem",
-                  color:"var(--ink)",
-                  outline:"none",
-                  height:"28px"
-                }} type="date" value={form.endDate} onChange={e=>set("endDate",e.target.value)}/>
+                <input style={inp} type="date" value={form.endDate} onChange={e=>set("endDate",e.target.value)}/>
               </div>
             )}
           </div>
@@ -413,7 +388,6 @@ function bookColor(title) {
 }
 
 function BookCard({ book, onEdit, onDelete }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const initial = book.title.charAt(0).toUpperCase();
   const color = bookColor(book.title);
   const chips = [book.genre, book.saga].filter(Boolean);
@@ -452,29 +426,11 @@ function BookCard({ book, onEdit, onDelete }) {
           </div>
         )}
       </div>
-      {/* Menu a tendina con puntini */}
-      <div style={{position:"relative"}}>
-        <button onClick={()=>setMenuOpen(!menuOpen)} style={{
-          background:"none",border:"none",cursor:"pointer",
-          color:"var(--muted)",fontSize:"1.2rem",padding:"0.15rem",lineHeight:1}}>⋮</button>
-        {menuOpen&&(
-          <div style={{position:"absolute",top:"100%",right:0,background:"var(--card-bg)",
-            border:"1px solid var(--border)",borderRadius:8,overflow:"hidden",
-            boxShadow:"0 4px 12px rgba(28,22,17,0.15)",zIndex:50,minWidth:120}}>
-            <button onClick={()=>{onEdit(book);setMenuOpen(false);}} style={{
-              width:"100%",padding:"0.6rem 1rem",background:"none",border:"none",cursor:"pointer",
-              textAlign:"left",fontSize:"0.9rem",color:"var(--ink)",borderBottom:"1px solid var(--border)",
-              fontFamily:"'Lora',serif"}}>
-              Modifica
-            </button>
-            <button onClick={()=>{onDelete(book.id);setMenuOpen(false);}} style={{
-              width:"100%",padding:"0.6rem 1rem",background:"none",border:"none",cursor:"pointer",
-              textAlign:"left",fontSize:"0.9rem",color:"var(--burgundy)",
-              fontFamily:"'Lora',serif"}}>
-              Elimina
-            </button>
-          </div>
-        )}
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"0.3rem",flexShrink:0}}>
+        <button onClick={()=>onEdit(book)} style={{background:"none",border:"none",cursor:"pointer",
+          color:"var(--muted)",fontSize:"0.9rem",padding:"0.15rem"}}>✏️</button>
+        <button onClick={()=>onDelete(book.id)} style={{background:"none",border:"none",cursor:"pointer",
+          color:"var(--muted)",fontSize:"0.9rem",padding:"0.15rem"}}>🗑️</button>
       </div>
     </div>
   );
@@ -885,6 +841,163 @@ function LibrarySection({ books, onEdit, onDelete, onAdd, onCsvImport, onBackup,
   );
 }
 
+function OpenLibrarySearchModal({ onSelectBook, onClose }) {
+  const [query, setQuery] = useState("");
+  const [risultati, setRisultati] = useState([]);
+  const [caricamento, setCaricamento] = useState(false);
+  const [cercato, setCercato] = useState(false);
+
+  async function cercaLibri(searchQuery) {
+    if (!searchQuery.trim()) return;
+    setCaricamento(true);
+    try {
+      const response = await fetch(
+        `https://openlibrary.org/search.json?title=${encodeURIComponent(searchQuery)}&limit=8`
+      );
+      const data = await response.json();
+      const libri = data.docs.map(libro => ({
+        title: libro.title || "",
+        author: libro.author_name?.[0] || "",
+        genre: libro.subject?.[0] || "Altro",
+        pages: libro.number_of_pages_median || "",
+        isbn: libro.isbn?.[0] || "",
+        copertina: libro.cover_i 
+          ? `https://covers.openlibrary.org/b/id/${libro.cover_i}-S.jpg`
+          : null,
+      }));
+      setRisultati(libri);
+      setCercato(true);
+    } catch (error) {
+      console.error("Errore ricerca:", error);
+      setRisultati([]);
+    } finally {
+      setCaricamento(false);
+    }
+  }
+
+  const handleCerca = (e) => {
+    e.preventDefault();
+    cercaLibri(query);
+  };
+
+  const inp = {
+    width: "100%", padding: "0.85rem 1rem",
+    background: "var(--card-bg)", border: "1px solid var(--border)",
+    borderRadius: 12, fontFamily: "'Lora',serif",
+    fontSize: "0.95rem", color: "var(--ink)", outline: "none",
+  };
+  const lbl = {
+    display: "block", fontSize: "0.68rem", fontFamily: "'DM Mono',monospace",
+    textTransform: "uppercase", letterSpacing: "0.1em",
+    color: "var(--muted)", marginBottom: "0.4rem", fontWeight: 500,
+  };
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem",marginTop:"0.25rem"}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.5rem",fontWeight:700,color:"var(--ink)"}}>
+          Cerca su Open Library
+        </h2>
+        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:"var(--muted)",fontSize:"1.3rem",lineHeight:1,padding:"0.2rem"}}>✕</button>
+      </div>
+
+      <form onSubmit={handleCerca} style={{marginBottom:"1.5rem",display:"flex",gap:"0.5rem"}}>
+        <div style={{flex:1}}>
+          <span style={lbl}>Titolo o autore</span>
+          <input
+            style={inp}
+            type="text"
+            placeholder="Es: Fourth Wing, Rebecca Yarros..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={caricamento}
+          style={{
+            alignSelf:"flex-end",
+            padding:"0.85rem 1.2rem",
+            background:"var(--burgundy)",
+            color:"#fff",
+            border:"none",
+            borderRadius:12,
+            cursor:caricamento?"default":"pointer",
+            fontFamily:"'Lora',serif",
+            fontSize:"0.95rem",
+            fontWeight:600,
+            opacity:caricamento?0.7:1,
+          }}
+        >
+          {caricamento?"...":"Cerca"}
+        </button>
+      </form>
+
+      {cercato&&risultati.length===0&&(
+        <div style={{textAlign:"center",color:"var(--muted)",fontStyle:"italic",padding:"1.5rem"}}>
+          Nessun risultato trovato. Prova un'altra ricerca.
+        </div>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:"0.75rem",maxHeight:"320px",overflowY:"auto",marginBottom:"1rem"}}>
+        {risultati.map((libro,idx)=>(
+          <div
+            key={idx}
+            style={{
+              background:"var(--card-bg)",
+              borderRadius:12,
+              padding:"0.9rem",
+              display:"flex",
+              gap:"0.85rem",
+              alignItems:"flex-start",
+              border:"1px solid var(--border)",
+              cursor:"pointer",
+            }}
+            onClick={()=>onSelectBook(libro)}
+          >
+            {libro.copertina&&(
+              <img
+                src={libro.copertina}
+                alt={libro.title}
+                style={{width:40,height:56,borderRadius:6,objectFit:"cover",flexShrink:0}}
+              />
+            )}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:600,fontSize:"0.95rem",color:"var(--ink)",marginBottom:"0.2rem",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                {libro.title}
+              </div>
+              <div style={{fontSize:"0.8rem",color:"var(--muted)",marginBottom:"0.3rem",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                {libro.author}
+              </div>
+              <div style={{fontSize:"0.72rem",color:"var(--muted)"}}>
+                {libro.genre} {libro.pages?`• ${libro.pages} pag.`:""}
+              </div>
+            </div>
+            <div style={{fontSize:"1.2rem",color:"var(--muted)",flexShrink:0}}>→</div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={onClose}
+        style={{
+          width:"100%",
+          padding:"0.9rem",
+          background:"none",
+          border:"1.5px solid var(--border)",
+          borderRadius:14,
+          cursor:"pointer",
+          fontFamily:"'Lora',serif",
+          fontSize:"0.95rem",
+          color:"var(--muted)",
+        }}
+      >
+        Annulla
+      </button>
+    </div>
+  );
+}
+
 function CsvImportModal({ onImport, onClose, existingBooks }) {
   const [stage,setStage]=useState("guide");
   const [parsed,setParsed]=useState({rows:[],errors:[]});
@@ -1070,14 +1183,22 @@ function CsvImportModal({ onImport, onClose, existingBooks }) {
    MAIN APP
 ══════════════════════════════════════════════════════════════════ */
 function BiblioTrack() {
-  const [books,     setBooks]      = useState(()=>loadBooks());
-  const [tab,       setTab]        = useState("home");
-  const [modal,     setModal]      = useState(null);
-  const [csvModal,  setCsvModal]   = useState(false);
-  const [toast,     setToast]      = useState(null);
-  const [lastBackup,setLastBackup] = useState(()=>loadLastBackup());
+  const [books,     setBooks]           = useState(()=>loadBooks());
+  const [tab,       setTab]             = useState("home");
+  const [modal,     setModal]           = useState(null);
+  const [csvModal,  setCsvModal]        = useState(false);
+  const [openLibraryModal, setOpenLibraryModal] = useState(false);
+  const [openLibraryPreload, setOpenLibraryPreload] = useState(null);
+  const [toast,     setToast]           = useState(null);
+  const [lastBackup,setLastBackup]      = useState(()=>loadLastBackup());
 
   const persist = useCallback(next=>{setBooks(next);saveBooks(next);},[]);
+
+  const handleOpenLibrarySelect = (libroData) => {
+    setOpenLibraryPreload(libroData);
+    setOpenLibraryModal(false);
+    setModal("add");
+  };
 
   const saveBook = book => {
     persist(books.some(b=>b.id===book.id)?books.map(b=>b.id===book.id?book:b):[...books,book]);
@@ -1189,15 +1310,25 @@ function BiblioTrack() {
 
         </main>
 
-        <button onClick={()=>setModal("add")} style={{
-          position:"fixed",bottom:"6.5rem",right:"1.25rem",
-          width:52,height:52,borderRadius:"50%",
-          background:"var(--burgundy)",border:"none",
-          color:"#fff",fontSize:"1.5rem",cursor:"pointer",
-          boxShadow:"0 4px 16px rgba(122,34,51,0.4)",
-          display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
-          +
-        </button>
+        <div style={{
+          position:"fixed",bottom:"5.5rem",right:"1.25rem",
+          display:"flex",flexDirection:"column",gap:"0.5rem",alignItems:"flex-end",zIndex:100}}>
+          <button onClick={()=>setOpenLibraryModal(true)} title="Aggiungi da Open Library"
+            style={{width:48,height:48,borderRadius:"50%",
+              background:"rgba(122,34,51,0.9)",border:"none",color:"#fff",fontSize:"1.2rem",
+              cursor:"pointer",boxShadow:"0 2px 8px rgba(122,34,51,0.3)",
+              display:"flex",alignItems:"center",justifyContent:"center"}}>
+            🔍
+          </button>
+          <button onClick={()=>setModal("add")} style={{
+            width:52,height:52,borderRadius:"50%",
+            background:"var(--burgundy)",border:"none",
+            color:"#fff",fontSize:"1.5rem",cursor:"pointer",
+            boxShadow:"0 4px 16px rgba(122,34,51,0.4)",
+            display:"flex",alignItems:"center",justifyContent:"center"}}>
+            +
+          </button>
+        </div>
 
         <nav style={{
           position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
@@ -1227,8 +1358,11 @@ function BiblioTrack() {
           ))}
         </nav>
 
-        <Modal open={!!modal} onClose={()=>setModal(null)}>
-          <BookForm initial={modal&&modal!=="add"?modal:null} onSave={saveBook} onCancel={()=>setModal(null)}/>
+        <Modal open={!!modal} onClose={()=>{setModal(null);setOpenLibraryPreload(null);}}>
+          <BookForm initial={modal&&modal!=="add"?modal:null} openLibraryData={openLibraryPreload} onSave={saveBook} onCancel={()=>{setModal(null);setOpenLibraryPreload(null);}}/>
+        </Modal>
+        <Modal open={openLibraryModal} onClose={()=>setOpenLibraryModal(false)}>
+          <OpenLibrarySearchModal onSelectBook={handleOpenLibrarySelect} onClose={()=>setOpenLibraryModal(false)}/>
         </Modal>
         <Modal open={csvModal} onClose={()=>setCsvModal(false)}>
           <CsvImportModal existingBooks={books} onImport={handleCsvImport} onClose={()=>setCsvModal(false)}/>
