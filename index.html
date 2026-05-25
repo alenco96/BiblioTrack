@@ -22,7 +22,7 @@
 
   <style>
     html, body, #root { height: 100%; margin: 0; padding: 0; }
-    body { background: #F2EDE4; }
+    body { background: #F2EDE4; padding-top: max(0px, env(safe-area-inset-top)); }
     #splash {
       position: fixed; inset: 0; background: #F2EDE4;
       display: flex; flex-direction: column;
@@ -391,10 +391,12 @@ function BookCard({ book, onEdit, onDelete }) {
   const initial = book.title.charAt(0).toUpperCase();
   const color = bookColor(book.title);
   const chips = [book.genre, book.saga].filter(Boolean);
+  const [showMenu, setShowMenu] = useState(false);
+  
   return (
     <div style={{background:"var(--card-bg)",borderRadius:14,padding:"0.9rem 1rem",
       display:"flex",alignItems:"center",gap:"0.85rem",
-      boxShadow:"0 1px 4px rgba(28,22,17,0.07)"}}>
+      boxShadow:"0 1px 4px rgba(28,22,17,0.07)",position:"relative"}}>
       <div style={{width:52,height:52,borderRadius:10,background:color,flexShrink:0,
         display:"flex",alignItems:"center",justifyContent:"center",
         fontFamily:"'Playfair Display',serif",fontSize:"1.3rem",fontWeight:700,color:"#fff"}}>
@@ -426,11 +428,29 @@ function BookCard({ book, onEdit, onDelete }) {
           </div>
         )}
       </div>
-      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"0.3rem",flexShrink:0}}>
-        <button onClick={()=>onEdit(book)} style={{background:"none",border:"none",cursor:"pointer",
-          color:"var(--muted)",fontSize:"0.9rem",padding:"0.15rem"}}>✏️</button>
-        <button onClick={()=>onDelete(book.id)} style={{background:"none",border:"none",cursor:"pointer",
-          color:"var(--muted)",fontSize:"0.9rem",padding:"0.15rem"}}>🗑️</button>
+      <div style={{position:"relative",flexShrink:0}}>
+        <button onClick={()=>setShowMenu(!showMenu)} style={{background:"none",border:"none",cursor:"pointer",
+          color:"var(--muted)",fontSize:"1.4rem",padding:"0.2rem 0.3rem",lineHeight:1}}>
+          ⋮
+        </button>
+        {showMenu&&(
+          <div style={{position:"absolute",right:0,top:"100%",marginTop:"0.3rem",
+            background:"var(--card-bg)",border:"1px solid var(--border)",borderRadius:12,
+            boxShadow:"0 4px 12px rgba(28,22,17,0.15)",zIndex:1000,minWidth:140}}>
+            <button onClick={()=>{onEdit(book);setShowMenu(false);}} style={{
+              display:"block",width:"100%",padding:"0.75rem 1rem",textAlign:"left",
+              background:"none",border:"none",cursor:"pointer",fontFamily:"'Lora',serif",
+              fontSize:"0.9rem",color:"var(--ink)",borderBottom:"1px solid var(--border)"}}>
+              Modifica
+            </button>
+            <button onClick={()=>{onDelete(book.id);setShowMenu(false);}} style={{
+              display:"block",width:"100%",padding:"0.75rem 1rem",textAlign:"left",
+              background:"none",border:"none",cursor:"pointer",fontFamily:"'Lora',serif",
+              fontSize:"0.9rem",color:"#d32f2f"}}>
+              Elimina
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1240,7 +1260,7 @@ function BiblioTrack() {
   return (
     <>
       <FontLink/>
-      <div style={{minHeight:"100vh",background:"var(--bg)",paddingBottom:"5rem",maxWidth:520,margin:"0 auto"}}>
+      <div style={{minHeight:"100vh",background:"var(--bg)",paddingBottom:"5rem",paddingTop:"max(0px, env(safe-area-inset-top))",maxWidth:520,margin:"0 auto"}}>
         <main style={{padding:"1.5rem 1.1rem 0"}}>
 
           {tab==="home"&&(
@@ -1311,7 +1331,7 @@ function BiblioTrack() {
         </main>
 
         <div style={{
-          position:"fixed",bottom:"5.5rem",right:"1.25rem",
+          position:"fixed",bottom:"6.5rem",right:"1.25rem",
           display:"flex",flexDirection:"column",gap:"0.5rem",alignItems:"flex-end",zIndex:100}}>
           <button onClick={()=>setOpenLibraryModal(true)} title="Aggiungi da Open Library"
             style={{width:48,height:48,borderRadius:"50%",
