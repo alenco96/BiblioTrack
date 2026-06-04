@@ -17,12 +17,11 @@
   <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png"/>
   <link rel="apple-touch-icon" sizes="512x512" href="./icons/icon-512.png"/>
 
-  <!-- Splash screen color for iOS -->
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 
   <style>
     html, body, #root { height: 100%; margin: 0; padding: 0; }
-    body { background: #F2EDE4; }
+    body { background: #F2EDE4; padding-top: max(0px, env(safe-area-inset-top)); }
     #splash {
       position: fixed; inset: 0; background: #F2EDE4;
       display: flex; flex-direction: column;
@@ -40,7 +39,6 @@
 </head>
 <body>
 
-<!-- Splash screen shown while React loads -->
 <div id="splash">
   <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect width="72" height="72" rx="16" fill="#7A2233"/>
@@ -52,7 +50,6 @@
 
 <div id="root"></div>
 
-<!-- React + Babel from CDN -->
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -252,8 +249,8 @@ function Modal({ open, onClose, children }) {
   );
 }
 
-function BookForm({ initial, onSave, onCancel }) {
-  const [form, setForm] = useState(initial || {
+function BookForm({ initial, onSave, onCancel, openLibraryData }) {
+  const [form, setForm] = useState(initial || openLibraryData || {
     title:"",author:"",genre:"",pages:"",status:STATUS.WISHLIST,
     startDate:"",endDate:"",rating:0,notes:"",saga:"",favorite:false,
   });
@@ -383,9 +380,9 @@ function bookColor(title) {
   return PALETTE[Math.abs(h) % PALETTE.length];
 }
 
-/* ─── BookCard with three-dot menu ────────────────────────────── */
+/* ─── BookCard with three-dot menu + favorites ─────────────────── */
 function BookCard({ book, onEdit, onDelete, onToggleFavorite }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const initial = book.title.charAt(0).toUpperCase();
   const color = bookColor(book.title);
   const chips = [book.genre, book.saga].filter(Boolean);
@@ -432,27 +429,27 @@ function BookCard({ book, onEdit, onDelete, onToggleFavorite }) {
             </div>
           )}
         </div>
-        <button onClick={()=>setMenuOpen(v=>!v)} style={{background:"none",border:"none",cursor:"pointer",
-          color:"var(--muted)",fontSize:"1.2rem",padding:"0.25rem 0.3rem",lineHeight:1,flexShrink:0,
-          fontWeight:700,letterSpacing:"0.05em"}}>⋮</button>
+        <button onClick={()=>setShowMenu(v=>!v)} style={{background:"none",border:"none",cursor:"pointer",
+          color:"var(--muted)",fontSize:"1.4rem",padding:"0.2rem 0.3rem",lineHeight:1,flexShrink:0,
+          fontWeight:700}}>⋮</button>
       </div>
 
-      {menuOpen&&(
+      {showMenu&&(
         <>
-          <div onClick={()=>setMenuOpen(false)}
+          <div onClick={()=>setShowMenu(false)}
             style={{position:"fixed",inset:0,zIndex:300}}/>
           <div style={{position:"absolute",right:0,top:"calc(100% + 4px)",zIndex:400,
             background:"var(--card-bg)",borderRadius:12,
             boxShadow:"0 4px 20px rgba(28,22,17,0.15)",
-            border:"1px solid var(--border)",minWidth:160,overflow:"hidden"}}>
-            <button onClick={()=>{setMenuOpen(false);onEdit(book);}} style={{
+            border:"1px solid var(--border)",minWidth:170,overflow:"hidden"}}>
+            <button onClick={()=>{setShowMenu(false);onEdit(book);}} style={{
               display:"flex",alignItems:"center",gap:"0.6rem",width:"100%",
               padding:"0.75rem 1rem",background:"none",border:"none",cursor:"pointer",
               fontFamily:"'Lora',serif",fontSize:"0.88rem",color:"var(--ink)",textAlign:"left"}}>
               ✏️ Modifica
             </button>
             {canFavorite&&(
-              <button onClick={()=>{setMenuOpen(false);onToggleFavorite(book.id);}} style={{
+              <button onClick={()=>{setShowMenu(false);onToggleFavorite(book.id);}} style={{
                 display:"flex",alignItems:"center",gap:"0.6rem",width:"100%",
                 padding:"0.75rem 1rem",background:"none",border:"none",cursor:"pointer",
                 fontFamily:"'Lora',serif",fontSize:"0.88rem",color:"var(--ink)",textAlign:"left",
@@ -460,15 +457,58 @@ function BookCard({ book, onEdit, onDelete, onToggleFavorite }) {
                 {book.favorite?"☆ Rimuovi dai preferiti":"★ Aggiungi ai preferiti"}
               </button>
             )}
-            <button onClick={()=>{setMenuOpen(false);onDelete(book.id);}} style={{
+            <button onClick={()=>{setShowMenu(false);onDelete(book.id);}} style={{
               display:"flex",alignItems:"center",gap:"0.6rem",width:"100%",
               padding:"0.75rem 1rem",background:"none",border:"none",cursor:"pointer",
-              fontFamily:"'Lora',serif",fontSize:"0.88rem",color:"var(--burgundy)",textAlign:"left",
+              fontFamily:"'Lora',serif",fontSize:"0.88rem",color:"#d32f2f",textAlign:"left",
               borderTop:"1px solid var(--border)"}}>
               🗑️ Elimina
             </button>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/* ─── SagaAccordion ────────────────────────────────────────────── */
+function SagaAccordion({ sagaName, books, onEdit, onDelete, onToggleFavorite, sortBy }) {
+  const [open, setOpen] = useState(false);
+  const color = bookColor(sagaName);
+  const readCount = books.filter(b=>b.status===STATUS.READ).length;
+
+  return (
+    <div style={{background:"var(--card-bg)",borderRadius:14,
+      boxShadow:"0 1px 4px rgba(28,22,17,0.07)",overflow:"hidden"}}>
+      <button onClick={()=>setOpen(v=>!v)} style={{
+        width:"100%",display:"flex",alignItems:"center",gap:"0.85rem",
+        padding:"0.9rem 1rem",background:"none",border:"none",cursor:"pointer",textAlign:"left"}}>
+        <div style={{width:52,height:52,borderRadius:10,background:color,flexShrink:0,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          fontFamily:"'Playfair Display',serif",fontSize:"1.1rem",fontWeight:700,color:"#fff"}}>
+          {sagaName.charAt(0).toUpperCase()}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Lora',serif",fontWeight:700,fontSize:"0.95rem",
+            color:"var(--ink)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+            {sagaName}
+          </div>
+          <div style={{fontSize:"0.75rem",color:"var(--muted)",marginTop:"0.15rem",fontFamily:"'DM Mono',monospace"}}>
+            {books.length} {books.length===1?"volume":"volumi"} · {readCount} letti
+          </div>
+        </div>
+        <span style={{color:"var(--muted)",fontSize:"0.85rem",transition:"transform 0.2s",
+          transform:open?"rotate(180deg)":"rotate(0deg)",flexShrink:0}}>▾</span>
+      </button>
+
+      {open&&(
+        <div style={{borderTop:"1px solid var(--border)",padding:"0.5rem 0.75rem 0.75rem"}}>
+          <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
+            {sortBooks(books,sortBy).map(b=>(
+              <BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete} onToggleFavorite={onToggleFavorite}/>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -624,7 +664,7 @@ function Statistics({ books }) {
   const favGenre = sortedGenres[0]?.[0] || null;
   const maxGenre = sortedGenres[0]?.[1] || 1;
 
-  // Media pagine per libro letto con pagine inserite
+  // Media pagine per libro letto (con pagine inserite)
   const booksWithPages = read.filter(b=>parseInt(b.pages)>0);
   const avgPages = booksWithPages.length
     ? Math.round(booksWithPages.reduce((s,b)=>s+(parseInt(b.pages)||0),0)/booksWithPages.length)
@@ -777,69 +817,27 @@ function Statistics({ books }) {
   );
 }
 
-/* ─── SagaAccordion ────────────────────────────────────────────── */
-function SagaAccordion({ sagaName, books, onEdit, onDelete, onToggleFavorite, sortBy }) {
-  const [open, setOpen] = useState(false);
-  const color = bookColor(sagaName);
-  const readCount = books.filter(b=>b.status===STATUS.READ).length;
-
-  return (
-    <div style={{background:"var(--card-bg)",borderRadius:14,
-      boxShadow:"0 1px 4px rgba(28,22,17,0.07)",overflow:"hidden"}}>
-      <button onClick={()=>setOpen(v=>!v)} style={{
-        width:"100%",display:"flex",alignItems:"center",gap:"0.85rem",
-        padding:"0.9rem 1rem",background:"none",border:"none",cursor:"pointer",textAlign:"left"}}>
-        <div style={{width:52,height:52,borderRadius:10,background:color,flexShrink:0,
-          display:"flex",alignItems:"center",justifyContent:"center",
-          fontFamily:"'Playfair Display',serif",fontSize:"1.1rem",fontWeight:700,color:"#fff",
-          letterSpacing:"0.02em"}}>
-          {sagaName.charAt(0).toUpperCase()}
-        </div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontFamily:"'Lora',serif",fontWeight:700,fontSize:"0.95rem",
-            color:"var(--ink)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-            {sagaName}
-          </div>
-          <div style={{fontSize:"0.75rem",color:"var(--muted)",marginTop:"0.15rem",fontFamily:"'DM Mono',monospace"}}>
-            {books.length} {books.length===1?"volume":"volumi"} · {readCount} letti
-          </div>
-        </div>
-        <span style={{color:"var(--muted)",fontSize:"0.85rem",transition:"transform 0.2s",
-          transform:open?"rotate(180deg)":"rotate(0deg)",flexShrink:0}}>▾</span>
-      </button>
-
-      {open&&(
-        <div style={{borderTop:"1px solid var(--border)",padding:"0.5rem 0.75rem 0.75rem"}}>
-          <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-            {sortBooks(books, sortBy).map(b=>(
-              <BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete} onToggleFavorite={onToggleFavorite}/>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function LibrarySection({ books, onEdit, onDelete, onToggleFavorite, onAdd, onCsvImport, onBackup, backupText, backupUrgent }) {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("title_asc");
 
-  // Ordina per Saga (accordion) oppure per data
   const SORT_PILLS = [
     ["title_asc","Titolo"],["author_asc","Autore"],["genre","Genere"],["date_desc","Data"],
   ];
 
   const baseBooks = books.filter(b=>b.status!==STATUS.WISHLIST);
   const filtered = search
-    ? baseBooks.filter(b=>b.title.toLowerCase().includes(search.toLowerCase())||b.author.toLowerCase().includes(search.toLowerCase())||b.genre.toLowerCase().includes(search.toLowerCase()))
+    ? baseBooks.filter(b=>
+        b.title.toLowerCase().includes(search.toLowerCase())||
+        b.author.toLowerCase().includes(search.toLowerCase())||
+        b.genre.toLowerCase().includes(search.toLowerCase()))
     : baseBooks;
 
   const reading   = filtered.filter(b=>b.status===STATUS.READING);
   const read      = filtered.filter(b=>b.status===STATUS.READ);
   const abandoned = filtered.filter(b=>b.status===STATUS.ABANDONED);
 
-  // Saga grouping for "Letti" section
+  // Saga grouping for "Letti"
   const readWithSaga    = read.filter(b=>b.saga);
   const readWithoutSaga = read.filter(b=>!b.saga);
   const sagaMap = {};
@@ -949,6 +947,170 @@ function LibrarySection({ books, onEdit, onDelete, onToggleFavorite, onAdd, onCs
   );
 }
 
+/* ─── OpenLibrary Search Modal ─────────────────────────────────── */
+function OpenLibrarySearchModal({ onSelectBook, onClose }) {
+  const [query, setQuery] = useState("");
+  const [risultati, setRisultati] = useState([]);
+  const [caricamento, setCaricamento] = useState(false);
+  const [cercato, setCercato] = useState(false);
+
+  function mapGenre(subjects) {
+    if (!subjects || subjects.length === 0) return "";
+    const map = {
+      "narrativa":"Narrativa","fiction":"Narrativa","novel":"Narrativa","romanzo":"Narrativa",
+      "saggistica":"Saggistica","nonfiction":"Saggistica","non-fiction":"Saggistica","essay":"Saggistica","saggio":"Saggistica",
+      "fantasy":"Fantasy","magic":"Fantasy","dragons":"Fantasy","wizards":"Fantasy",
+      "science fiction":"Sci-Fi","sci-fi":"Sci-Fi","space":"Sci-Fi","dystopia":"Sci-Fi","futuristic":"Sci-Fi",
+      "thriller":"Thriller","suspense":"Thriller","spy":"Thriller","crime":"Thriller",
+      "horror":"Horror","ghost":"Horror","supernatural":"Horror",
+      "historical":"Storico","history":"Storico","storico":"Storico","ancient":"Storico","medieval":"Storico",
+      "romance":"Romanzo","love":"Romanzo","romantic":"Romanzo",
+      "biography":"Biografia","autobiography":"Biografia","memoir":"Biografia","biograph":"Biografia",
+      "poetry":"Poesia","poems":"Poesia","poesia":"Poesia","verse":"Poesia",
+      "comics":"Fumetti","graphic novel":"Fumetti","manga":"Fumetti","comic":"Fumetti",
+    };
+    for (const subject of subjects) {
+      const s = subject.toLowerCase();
+      for (const [key, val] of Object.entries(map)) {
+        if (s.includes(key)) return val;
+      }
+    }
+    return "";
+  }
+
+  async function cercaLibri(searchQuery) {
+    if (!searchQuery.trim()) return;
+    setCaricamento(true);
+    try {
+      const response = await fetch(
+        `https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=10&fields=title,author_name,number_of_pages_median,subject,cover_i,isbn,key`
+      );
+      const data = await response.json();
+      const libri = (data.docs || [])
+        .filter(libro => libro.title)
+        .map(libro => ({
+          title:    libro.title || "",
+          author:   (libro.author_name || [])[0] || "",
+          genre:    mapGenre(libro.subject || []),
+          pages:    libro.number_of_pages_median ? String(libro.number_of_pages_median) : "",
+          isbn:     (libro.isbn || [])[0] || "",
+          copertina: libro.cover_i
+            ? `https://covers.openlibrary.org/b/id/${libro.cover_i}-M.jpg`
+            : null,
+        }));
+      setRisultati(libri);
+      setCercato(true);
+    } catch (error) {
+      console.error("Errore ricerca:", error);
+      setRisultati([]);
+    } finally {
+      setCaricamento(false);
+    }
+  }
+
+  const handleCerca = (e) => {
+    e.preventDefault();
+    cercaLibri(query);
+  };
+
+  const inp = {
+    width:"100%", padding:"0.85rem 1rem",
+    background:"var(--card-bg)", border:"1px solid var(--border)",
+    borderRadius:12, fontFamily:"'Lora',serif",
+    fontSize:"0.95rem", color:"var(--ink)", outline:"none",
+  };
+  const lbl = {
+    display:"block", fontSize:"0.68rem", fontFamily:"'DM Mono',monospace",
+    textTransform:"uppercase", letterSpacing:"0.1em",
+    color:"var(--muted)", marginBottom:"0.4rem", fontWeight:500,
+  };
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem",marginTop:"0.25rem"}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.5rem",fontWeight:700,color:"var(--ink)"}}>
+          Cerca su Open Library
+        </h2>
+        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:"var(--muted)",fontSize:"1.3rem",lineHeight:1,padding:"0.2rem"}}>✕</button>
+      </div>
+
+      <form onSubmit={handleCerca} style={{marginBottom:"1.5rem",display:"flex",gap:"0.5rem"}}>
+        <div style={{flex:1}}>
+          <span style={lbl}>Titolo o autore</span>
+          <input style={inp} type="text"
+            placeholder="Es: Fourth Wing, Rebecca Yarros..."
+            value={query} onChange={(e)=>setQuery(e.target.value)}/>
+        </div>
+        <button type="submit" disabled={caricamento} style={{
+          alignSelf:"flex-end",padding:"0.85rem 1.2rem",
+          background:"var(--burgundy)",color:"#fff",border:"none",borderRadius:12,
+          cursor:caricamento?"default":"pointer",fontFamily:"'Lora',serif",
+          fontSize:"0.95rem",fontWeight:600,opacity:caricamento?0.7:1,
+        }}>
+          {caricamento?"...":"Cerca"}
+        </button>
+      </form>
+
+      {cercato&&risultati.length===0&&(
+        <div style={{textAlign:"center",color:"var(--muted)",fontStyle:"italic",padding:"1.5rem"}}>
+          Nessun risultato trovato. Prova un'altra ricerca.
+        </div>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:"0.75rem",maxHeight:"320px",overflowY:"auto",marginBottom:"1rem"}}>
+        {risultati.map((libro,idx)=>(
+          <div key={idx} onClick={()=>onSelectBook(libro)} style={{
+            background:"var(--card-bg)",borderRadius:12,padding:"0.9rem",
+            display:"flex",gap:"0.85rem",alignItems:"flex-start",
+            border:"1px solid var(--border)",cursor:"pointer",
+          }}>
+            {libro.copertina&&(
+              <img src={libro.copertina} alt={libro.title}
+                style={{width:40,height:56,borderRadius:6,objectFit:"cover",flexShrink:0}}/>
+            )}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:600,fontSize:"0.95rem",color:"var(--ink)",marginBottom:"0.2rem",
+                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                {libro.title}
+              </div>
+              {libro.author&&(
+                <div style={{fontSize:"0.8rem",color:"var(--muted)",marginBottom:"0.25rem",
+                  whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                  {libro.author}
+                </div>
+              )}
+              <div style={{display:"flex",gap:"0.4rem",flexWrap:"wrap"}}>
+                {libro.genre&&(
+                  <span style={{fontSize:"0.65rem",fontFamily:"'DM Mono',monospace",
+                    padding:"0.1rem 0.45rem",background:"rgba(122,34,51,0.08)",
+                    borderRadius:20,color:"var(--burgundy)"}}>
+                    {libro.genre}
+                  </span>
+                )}
+                {libro.pages&&(
+                  <span style={{fontSize:"0.65rem",fontFamily:"'DM Mono',monospace",
+                    padding:"0.1rem 0.45rem",background:"rgba(28,22,17,0.06)",
+                    borderRadius:20,color:"var(--muted)"}}>
+                    {libro.pages} pag.
+                  </span>
+                )}
+              </div>
+            </div>
+            <div style={{fontSize:"1.2rem",color:"var(--muted)",flexShrink:0}}>→</div>
+          </div>
+        ))}
+      </div>
+
+      <button onClick={onClose} style={{width:"100%",padding:"0.9rem",background:"none",
+        border:"1.5px solid var(--border)",borderRadius:14,cursor:"pointer",
+        fontFamily:"'Lora',serif",fontSize:"0.95rem",color:"var(--muted)"}}>
+        Annulla
+      </button>
+    </div>
+  );
+}
+
+/* ─── CSV Import Modal ─────────────────────────────────────────── */
 function CsvImportModal({ onImport, onClose, existingBooks }) {
   const [stage,setStage]=useState("guide");
   const [parsed,setParsed]=useState({rows:[],errors:[]});
@@ -1134,18 +1296,27 @@ function CsvImportModal({ onImport, onClose, existingBooks }) {
    MAIN APP
 ══════════════════════════════════════════════════════════════════ */
 function BiblioTrack() {
-  const [books,     setBooks]      = useState(()=>loadBooks());
-  const [tab,       setTab]        = useState("home");
-  const [modal,     setModal]      = useState(null);
-  const [csvModal,  setCsvModal]   = useState(false);
-  const [toast,     setToast]      = useState(null);
-  const [lastBackup,setLastBackup] = useState(()=>loadLastBackup());
+  const [books,            setBooks]           = useState(()=>loadBooks());
+  const [tab,              setTab]             = useState("home");
+  const [modal,            setModal]           = useState(null);
+  const [csvModal,         setCsvModal]        = useState(false);
+  const [openLibraryModal, setOpenLibraryModal]= useState(false);
+  const [openLibraryPreload,setOpenLibraryPreload] = useState(null);
+  const [toast,            setToast]           = useState(null);
+  const [lastBackup,       setLastBackup]      = useState(()=>loadLastBackup());
 
   const persist = useCallback(next=>{setBooks(next);saveBooks(next);},[]);
+
+  const handleOpenLibrarySelect = (libroData) => {
+    setOpenLibraryPreload(libroData);
+    setOpenLibraryModal(false);
+    setModal("add");
+  };
 
   const saveBook = book => {
     persist(books.some(b=>b.id===book.id)?books.map(b=>b.id===book.id?book:b):[...books,book]);
     setModal(null);
+    setOpenLibraryPreload(null);
   };
   const deleteBook = id => { if(confirm("Eliminare questo libro?")) persist(books.filter(b=>b.id!==id)); };
   const toggleFavorite = id => {
@@ -1186,7 +1357,8 @@ function BiblioTrack() {
   return (
     <>
       <FontLink/>
-      <div style={{minHeight:"100vh",background:"var(--bg)",paddingBottom:"5rem",maxWidth:520,margin:"0 auto"}}>
+      <div style={{minHeight:"100vh",background:"var(--bg)",paddingBottom:"5rem",
+        paddingTop:"max(0px, env(safe-area-inset-top))",maxWidth:520,margin:"0 auto"}}>
         <main style={{padding:"1.5rem 1.1rem 0"}}>
 
           {tab==="home"&&(
@@ -1196,6 +1368,7 @@ function BiblioTrack() {
                 <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.9rem",fontWeight:700,
                   color:"var(--ink)",lineHeight:1.15}}>Calendario letture</h1>
               </div>
+              {/* In lettura PRIMA del calendario */}
               <div>
                 <div style={{fontFamily:"'Lora',serif",fontWeight:700,fontSize:"1rem",
                   color:"var(--ink)",marginBottom:"0.6rem"}}>In lettura ora</div>
@@ -1257,15 +1430,26 @@ function BiblioTrack() {
 
         </main>
 
-        <button onClick={()=>setModal("add")} style={{
-          position:"fixed",bottom:"5.5rem",right:"1.25rem",
-          width:52,height:52,borderRadius:"50%",
-          background:"var(--burgundy)",border:"none",
-          color:"#fff",fontSize:"1.5rem",cursor:"pointer",
-          boxShadow:"0 4px 16px rgba(122,34,51,0.4)",
-          display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
-          +
-        </button>
+        {/* FAB stack: 🔍 sopra + */}
+        <div style={{
+          position:"fixed",bottom:"6.5rem",right:"1.25rem",
+          display:"flex",flexDirection:"column",gap:"0.5rem",alignItems:"flex-end",zIndex:100}}>
+          <button onClick={()=>setOpenLibraryModal(true)} title="Cerca su Open Library"
+            style={{width:48,height:48,borderRadius:"50%",
+              background:"rgba(122,34,51,0.9)",border:"none",color:"#fff",fontSize:"1.2rem",
+              cursor:"pointer",boxShadow:"0 2px 8px rgba(122,34,51,0.3)",
+              display:"flex",alignItems:"center",justifyContent:"center"}}>
+            🔍
+          </button>
+          <button onClick={()=>setModal("add")} style={{
+            width:52,height:52,borderRadius:"50%",
+            background:"var(--burgundy)",border:"none",
+            color:"#fff",fontSize:"1.5rem",cursor:"pointer",
+            boxShadow:"0 4px 16px rgba(122,34,51,0.4)",
+            display:"flex",alignItems:"center",justifyContent:"center"}}>
+            +
+          </button>
+        </div>
 
         <nav style={{
           position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
@@ -1295,12 +1479,19 @@ function BiblioTrack() {
           ))}
         </nav>
 
-        <Modal open={!!modal} onClose={()=>setModal(null)}>
-          <BookForm initial={modal&&modal!=="add"?modal:null} onSave={saveBook} onCancel={()=>setModal(null)}/>
+        <Modal open={!!modal} onClose={()=>{setModal(null);setOpenLibraryPreload(null);}}>
+          <BookForm initial={modal&&modal!=="add"?modal:null}
+            openLibraryData={openLibraryPreload}
+            onSave={saveBook}
+            onCancel={()=>{setModal(null);setOpenLibraryPreload(null);}}/>
+        </Modal>
+        <Modal open={openLibraryModal} onClose={()=>setOpenLibraryModal(false)}>
+          <OpenLibrarySearchModal onSelectBook={handleOpenLibrarySelect} onClose={()=>setOpenLibraryModal(false)}/>
         </Modal>
         <Modal open={csvModal} onClose={()=>setCsvModal(false)}>
           <CsvImportModal existingBooks={books} onImport={handleCsvImport} onClose={()=>setCsvModal(false)}/>
         </Modal>
+
         {toast&&(
           <div style={{position:"fixed",bottom:"5rem",left:"50%",transform:"translateX(-50%)",
             background:"var(--ink)",color:"var(--cream)",padding:"0.75rem 1.5rem",borderRadius:12,
@@ -1313,7 +1504,6 @@ function BiblioTrack() {
   );
 }
 
-// Hide splash screen and render app
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(React.createElement(BiblioTrack));
 
@@ -1326,7 +1516,6 @@ if (splash) {
 }
 </script>
 
-<!-- Service Worker registration -->
 <script>
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
