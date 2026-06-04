@@ -22,7 +22,7 @@
 
   <style>
     html, body, #root { height: 100%; margin: 0; padding: 0; }
-    body { background: #F2EDE4; padding-top: max(0px, env(safe-area-inset-top)); }
+    body { background: #F2EDE4; }
     #splash {
       position: fixed; inset: 0; background: #F2EDE4;
       display: flex; flex-direction: column;
@@ -147,11 +147,6 @@ function sortBooks(books, sortBy) {
     case "rating_asc":  return s.sort((a,b)=>a.rating-b.rating);
     case "pages_desc":  return s.sort((a,b)=>(parseInt(b.pages)||0)-(parseInt(a.pages)||0));
     case "pages_asc":   return s.sort((a,b)=>(parseInt(a.pages)||0)-(parseInt(b.pages)||0));
-    case "saga":        return s.sort((a,b)=>{
-      if (!a.saga&&!b.saga) return a.title.localeCompare(b.title,"it");
-      if (!a.saga) return 1; if (!b.saga) return -1;
-      return a.saga.localeCompare(b.saga,"it")||a.title.localeCompare(b.title,"it");
-    });
     default: return s;
   }
 }
@@ -200,6 +195,7 @@ function parseCSV(text) {
       startDate:obj.data_inizio||"", endDate:obj.data_fine||"",
       rating:Math.min(5,Math.max(0,parseInt(obj.valutazione)||0)),
       notes:obj.note||"",
+      favorite:false,
     });
   });
   return { rows, errors };
@@ -256,10 +252,10 @@ function Modal({ open, onClose, children }) {
   );
 }
 
-function BookForm({ initial, onSave, onCancel, openLibraryData }) {
-  const [form, setForm] = useState(initial || openLibraryData || {
+function BookForm({ initial, onSave, onCancel }) {
+  const [form, setForm] = useState(initial || {
     title:"",author:"",genre:"",pages:"",status:STATUS.WISHLIST,
-    startDate:"",endDate:"",rating:0,notes:"",saga:"",
+    startDate:"",endDate:"",rating:0,notes:"",saga:"",favorite:false,
   });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
@@ -387,71 +383,93 @@ function bookColor(title) {
   return PALETTE[Math.abs(h) % PALETTE.length];
 }
 
-function BookCard({ book, onEdit, onDelete }) {
+/* ─── BookCard with three-dot menu ────────────────────────────── */
+function BookCard({ book, onEdit, onDelete, onToggleFavorite }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const initial = book.title.charAt(0).toUpperCase();
   const color = bookColor(book.title);
   const chips = [book.genre, book.saga].filter(Boolean);
-  const [showMenu, setShowMenu] = useState(false);
-  
+  const canFavorite = book.status === STATUS.READ;
+
   return (
-    <div style={{background:"var(--card-bg)",borderRadius:14,padding:"0.9rem 1rem",
-      display:"flex",alignItems:"center",gap:"0.85rem",
-      boxShadow:"0 1px 4px rgba(28,22,17,0.07)",position:"relative"}}>
-      <div style={{width:52,height:52,borderRadius:10,background:color,flexShrink:0,
-        display:"flex",alignItems:"center",justifyContent:"center",
-        fontFamily:"'Playfair Display',serif",fontSize:"1.3rem",fontWeight:700,color:"#fff"}}>
-        {initial}
-      </div>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontFamily:"'Lora',serif",fontWeight:600,fontSize:"0.95rem",
-          lineHeight:1.3,color:"var(--ink)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-          {book.title}
+    <div style={{position:"relative"}}>
+      <div style={{background:"var(--card-bg)",borderRadius:14,padding:"0.9rem 1rem",
+        display:"flex",alignItems:"center",gap:"0.85rem",
+        boxShadow:"0 1px 4px rgba(28,22,17,0.07)"}}>
+        <div style={{width:52,height:52,borderRadius:10,background:color,flexShrink:0,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          fontFamily:"'Playfair Display',serif",fontSize:"1.3rem",fontWeight:700,color:"#fff"}}>
+          {initial}
         </div>
-        <div style={{fontSize:"0.8rem",color:"var(--muted)",marginTop:"0.1rem",
-          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-          {book.author}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:"0.3rem"}}>
+            <div style={{fontFamily:"'Lora',serif",fontWeight:600,fontSize:"0.95rem",
+              lineHeight:1.3,color:"var(--ink)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+              {book.title}
+            </div>
+            {book.favorite&&(
+              <span style={{fontSize:"0.75rem",color:"var(--amber)",flexShrink:0}}>★</span>
+            )}
+          </div>
+          <div style={{fontSize:"0.8rem",color:"var(--muted)",marginTop:"0.1rem",
+            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+            {book.author}
+          </div>
+          {chips.length>0&&(
+            <div style={{display:"flex",flexWrap:"wrap",gap:"0.3rem",marginTop:"0.4rem"}}>
+              {chips.map(c=>(
+                <span key={c} style={{fontSize:"0.68rem",fontFamily:"'DM Mono',monospace",
+                  padding:"0.1rem 0.55rem",background:"rgba(28,22,17,0.06)",
+                  borderRadius:20,color:"var(--muted)"}}>
+                  {c}
+                </span>
+              ))}
+            </div>
+          )}
+          {book.rating>0&&(
+            <div style={{fontSize:"0.75rem",color:"var(--amber)",marginTop:"0.25rem",letterSpacing:"-0.5px"}}>
+              {ratingStars(book.rating)}
+            </div>
+          )}
         </div>
-        {chips.length>0&&(
-          <div style={{display:"flex",flexWrap:"wrap",gap:"0.3rem",marginTop:"0.4rem"}}>
-            {chips.map(c=>(
-              <span key={c} style={{fontSize:"0.68rem",fontFamily:"'DM Mono',monospace",
-                padding:"0.1rem 0.55rem",background:"rgba(28,22,17,0.06)",
-                borderRadius:20,color:"var(--muted)"}}>
-                {c}
-              </span>
-            ))}
-          </div>
-        )}
-        {book.rating>0&&(
-          <div style={{fontSize:"0.75rem",color:"var(--amber)",marginTop:"0.25rem",letterSpacing:"-0.5px"}}>
-            {ratingStars(book.rating)}
-          </div>
-        )}
+        <button onClick={()=>setMenuOpen(v=>!v)} style={{background:"none",border:"none",cursor:"pointer",
+          color:"var(--muted)",fontSize:"1.2rem",padding:"0.25rem 0.3rem",lineHeight:1,flexShrink:0,
+          fontWeight:700,letterSpacing:"0.05em"}}>⋮</button>
       </div>
-      <div style={{position:"relative",flexShrink:0}}>
-        <button onClick={()=>setShowMenu(!showMenu)} style={{background:"none",border:"none",cursor:"pointer",
-          color:"var(--muted)",fontSize:"1.4rem",padding:"0.2rem 0.3rem",lineHeight:1}}>
-          ⋮
-        </button>
-        {showMenu&&(
-          <div style={{position:"absolute",right:0,top:"100%",marginTop:"0.3rem",
-            background:"var(--card-bg)",border:"1px solid var(--border)",borderRadius:12,
-            boxShadow:"0 4px 12px rgba(28,22,17,0.15)",zIndex:1000,minWidth:140}}>
-            <button onClick={()=>{onEdit(book);setShowMenu(false);}} style={{
-              display:"block",width:"100%",padding:"0.75rem 1rem",textAlign:"left",
-              background:"none",border:"none",cursor:"pointer",fontFamily:"'Lora',serif",
-              fontSize:"0.9rem",color:"var(--ink)",borderBottom:"1px solid var(--border)"}}>
-              Modifica
+
+      {menuOpen&&(
+        <>
+          <div onClick={()=>setMenuOpen(false)}
+            style={{position:"fixed",inset:0,zIndex:300}}/>
+          <div style={{position:"absolute",right:0,top:"calc(100% + 4px)",zIndex:400,
+            background:"var(--card-bg)",borderRadius:12,
+            boxShadow:"0 4px 20px rgba(28,22,17,0.15)",
+            border:"1px solid var(--border)",minWidth:160,overflow:"hidden"}}>
+            <button onClick={()=>{setMenuOpen(false);onEdit(book);}} style={{
+              display:"flex",alignItems:"center",gap:"0.6rem",width:"100%",
+              padding:"0.75rem 1rem",background:"none",border:"none",cursor:"pointer",
+              fontFamily:"'Lora',serif",fontSize:"0.88rem",color:"var(--ink)",textAlign:"left"}}>
+              ✏️ Modifica
             </button>
-            <button onClick={()=>{onDelete(book.id);setShowMenu(false);}} style={{
-              display:"block",width:"100%",padding:"0.75rem 1rem",textAlign:"left",
-              background:"none",border:"none",cursor:"pointer",fontFamily:"'Lora',serif",
-              fontSize:"0.9rem",color:"#d32f2f"}}>
-              Elimina
+            {canFavorite&&(
+              <button onClick={()=>{setMenuOpen(false);onToggleFavorite(book.id);}} style={{
+                display:"flex",alignItems:"center",gap:"0.6rem",width:"100%",
+                padding:"0.75rem 1rem",background:"none",border:"none",cursor:"pointer",
+                fontFamily:"'Lora',serif",fontSize:"0.88rem",color:"var(--ink)",textAlign:"left",
+                borderTop:"1px solid var(--border)"}}>
+                {book.favorite?"☆ Rimuovi dai preferiti":"★ Aggiungi ai preferiti"}
+              </button>
+            )}
+            <button onClick={()=>{setMenuOpen(false);onDelete(book.id);}} style={{
+              display:"flex",alignItems:"center",gap:"0.6rem",width:"100%",
+              padding:"0.75rem 1rem",background:"none",border:"none",cursor:"pointer",
+              fontFamily:"'Lora',serif",fontSize:"0.88rem",color:"var(--burgundy)",textAlign:"left",
+              borderTop:"1px solid var(--border)"}}>
+              🗑️ Elimina
             </button>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -606,10 +624,11 @@ function Statistics({ books }) {
   const favGenre = sortedGenres[0]?.[0] || null;
   const maxGenre = sortedGenres[0]?.[1] || 1;
 
-  const longestBook = read.reduce((best,b)=>{
-    const p=parseInt(b.pages)||0;
-    return p>(parseInt(best?.pages)||0)?b:best;
-  }, null);
+  // Media pagine per libro letto con pagine inserite
+  const booksWithPages = read.filter(b=>parseInt(b.pages)>0);
+  const avgPages = booksWithPages.length
+    ? Math.round(booksWithPages.reduce((s,b)=>s+(parseInt(b.pages)||0),0)/booksWithPages.length)
+    : null;
 
   const MONTH_LABELS = ["G","F","M","A","M","G","L","A","S","O","N","D"];
   const byMonth = Array(12).fill(0);
@@ -618,9 +637,8 @@ function Statistics({ books }) {
   });
   const maxMonth = Math.max(...byMonth, 1);
 
-  const sagaCounts = {};
-  books.forEach(b => { if(b.saga) sagaCounts[b.saga]=(sagaCounts[b.saga]||0)+1; });
-  const topSagas = Object.entries(sagaCounts).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  // Preferiti
+  const favorites = read.filter(b=>b.favorite);
 
   const cardBase = {
     background:"#fff", border:"1px solid rgba(200,187,168,0.5)",
@@ -664,11 +682,8 @@ function Statistics({ books }) {
           <div style={labelStyle}>Genere fav.</div>
         </div>
         <div style={cardBase}>
-          <div style={{...valueStyle,fontSize:longestBook?"0.92rem":"1.5rem",
-            overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>
-            {longestBook?longestBook.title:"—"}
-          </div>
-          <div style={labelStyle}>Libro più lungo</div>
+          <div style={{...valueStyle,fontSize:"1.5rem"}}>{avgPages?avgPages.toLocaleString("it"):"—"}</div>
+          <div style={labelStyle}>Pag. medie</div>
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"0.6rem"}}>
@@ -716,18 +731,41 @@ function Statistics({ books }) {
         </div>
       )}
 
-      {topSagas.length>0&&(
-        <div style={sectionCard}>
-          <h4 style={{fontFamily:"'Playfair Display',serif",fontSize:"1rem",fontWeight:700,marginBottom:"1rem"}}>Top Saghe</h4>
-          {topSagas.map(([name,count])=>(
-            <div key={name} style={{display:"flex",alignItems:"center",gap:"0.75rem",marginBottom:"0.6rem",
-              padding:"0.6rem 0",borderBottom:"1px solid rgba(200,187,168,0.3)"}}>
-              <span style={{fontFamily:"'Lora',serif",fontSize:"0.9rem",fontWeight:600,flex:1,color:"var(--ink)"}}>{name}</span>
-              <span style={{fontFamily:"'DM Mono',monospace",fontSize:"0.72rem",color:"var(--muted)"}}>{count} {count===1?"libro":"libri"}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div style={sectionCard}>
+        <h4 style={{fontFamily:"'Playfair Display',serif",fontSize:"1rem",fontWeight:700,marginBottom:"1rem"}}>
+          ★ Preferiti
+        </h4>
+        {favorites.length===0?(
+          <div style={{textAlign:"center",color:"var(--muted)",fontStyle:"italic",fontSize:"0.85rem",padding:"0.5rem 0"}}>
+            Nessun preferito ancora — usa il menu ⋮ su un libro letto per aggiungerlo.
+          </div>
+        ):(
+          <div style={{display:"flex",flexDirection:"column",gap:"0.6rem"}}>
+            {favorites.map(b=>(
+              <div key={b.id} style={{display:"flex",alignItems:"center",gap:"0.75rem",
+                padding:"0.6rem 0",borderBottom:"1px solid rgba(200,187,168,0.3)"}}>
+                <div style={{width:36,height:36,borderRadius:7,background:bookColor(b.title),flexShrink:0,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontFamily:"'Playfair Display',serif",fontSize:"1rem",fontWeight:700,color:"#fff"}}>
+                  {b.title.charAt(0).toUpperCase()}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Lora',serif",fontWeight:600,fontSize:"0.88rem",
+                    color:"var(--ink)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    {b.title}
+                  </div>
+                  <div style={{fontSize:"0.75rem",color:"var(--muted)"}}>{b.author}</div>
+                </div>
+                {b.rating>0&&(
+                  <div style={{fontSize:"0.72rem",color:"var(--amber)",letterSpacing:"-0.5px",flexShrink:0}}>
+                    {ratingStars(b.rating)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {books.length===0&&(
         <div style={{textAlign:"center",color:"var(--muted)",fontStyle:"italic",padding:"2.5rem",
@@ -739,23 +777,57 @@ function Statistics({ books }) {
   );
 }
 
-function BookList({ books, onEdit, onDelete, sortBy }) {
-  const sorted=sortBooks(books,sortBy);
-  if(sorted.length===0) return (
-    <div style={{textAlign:"center",color:"var(--muted)",fontStyle:"italic",padding:"2rem",
-      background:"var(--parchment)",border:"1px solid var(--border)",borderRadius:4}}>
-      Nessun libro in questa categoria.
+/* ─── SagaAccordion ────────────────────────────────────────────── */
+function SagaAccordion({ sagaName, books, onEdit, onDelete, onToggleFavorite, sortBy }) {
+  const [open, setOpen] = useState(false);
+  const color = bookColor(sagaName);
+  const readCount = books.filter(b=>b.status===STATUS.READ).length;
+
+  return (
+    <div style={{background:"var(--card-bg)",borderRadius:14,
+      boxShadow:"0 1px 4px rgba(28,22,17,0.07)",overflow:"hidden"}}>
+      <button onClick={()=>setOpen(v=>!v)} style={{
+        width:"100%",display:"flex",alignItems:"center",gap:"0.85rem",
+        padding:"0.9rem 1rem",background:"none",border:"none",cursor:"pointer",textAlign:"left"}}>
+        <div style={{width:52,height:52,borderRadius:10,background:color,flexShrink:0,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          fontFamily:"'Playfair Display',serif",fontSize:"1.1rem",fontWeight:700,color:"#fff",
+          letterSpacing:"0.02em"}}>
+          {sagaName.charAt(0).toUpperCase()}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Lora',serif",fontWeight:700,fontSize:"0.95rem",
+            color:"var(--ink)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+            {sagaName}
+          </div>
+          <div style={{fontSize:"0.75rem",color:"var(--muted)",marginTop:"0.15rem",fontFamily:"'DM Mono',monospace"}}>
+            {books.length} {books.length===1?"volume":"volumi"} · {readCount} letti
+          </div>
+        </div>
+        <span style={{color:"var(--muted)",fontSize:"0.85rem",transition:"transform 0.2s",
+          transform:open?"rotate(180deg)":"rotate(0deg)",flexShrink:0}}>▾</span>
+      </button>
+
+      {open&&(
+        <div style={{borderTop:"1px solid var(--border)",padding:"0.5rem 0.75rem 0.75rem"}}>
+          <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
+            {sortBooks(books, sortBy).map(b=>(
+              <BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete} onToggleFavorite={onToggleFavorite}/>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
-  return <div style={{display:"grid",gap:"0.75rem"}}>{sorted.map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete}/>)}</div>;
 }
 
-function LibrarySection({ books, onEdit, onDelete, onAdd, onCsvImport, onBackup, backupText, backupUrgent }) {
+function LibrarySection({ books, onEdit, onDelete, onToggleFavorite, onAdd, onCsvImport, onBackup, backupText, backupUrgent }) {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("title_asc");
 
+  // Ordina per Saga (accordion) oppure per data
   const SORT_PILLS = [
-    ["title_asc","Titolo"],["author_asc","Autore"],["genre","Genere"],["saga","Saga"],
+    ["title_asc","Titolo"],["author_asc","Autore"],["genre","Genere"],["date_desc","Data"],
   ];
 
   const baseBooks = books.filter(b=>b.status!==STATUS.WISHLIST);
@@ -763,9 +835,19 @@ function LibrarySection({ books, onEdit, onDelete, onAdd, onCsvImport, onBackup,
     ? baseBooks.filter(b=>b.title.toLowerCase().includes(search.toLowerCase())||b.author.toLowerCase().includes(search.toLowerCase())||b.genre.toLowerCase().includes(search.toLowerCase()))
     : baseBooks;
 
-  const reading  = filtered.filter(b=>b.status===STATUS.READING);
-  const read     = filtered.filter(b=>b.status===STATUS.READ);
-  const abandoned= filtered.filter(b=>b.status===STATUS.ABANDONED);
+  const reading   = filtered.filter(b=>b.status===STATUS.READING);
+  const read      = filtered.filter(b=>b.status===STATUS.READ);
+  const abandoned = filtered.filter(b=>b.status===STATUS.ABANDONED);
+
+  // Saga grouping for "Letti" section
+  const readWithSaga    = read.filter(b=>b.saga);
+  const readWithoutSaga = read.filter(b=>!b.saga);
+  const sagaMap = {};
+  readWithSaga.forEach(b=>{
+    if(!sagaMap[b.saga]) sagaMap[b.saga]=[];
+    sagaMap[b.saga].push(b);
+  });
+  const sagas = Object.entries(sagaMap).sort(([a],[b])=>a.localeCompare(b,"it"));
 
   const SectionHeader=({label,count})=>(
     <div style={{display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.6rem",marginTop:"0.2rem"}}>
@@ -834,7 +916,7 @@ function LibrarySection({ books, onEdit, onDelete, onAdd, onCsvImport, onBackup,
         <div>
           <SectionHeader label="In lettura" count={reading.length}/>
           <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-            {sortBooks(reading,sortBy).map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete}/>)}
+            {sortBooks(reading,sortBy).map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete} onToggleFavorite={onToggleFavorite}/>)}
           </div>
         </div>
       )}
@@ -844,7 +926,13 @@ function LibrarySection({ books, onEdit, onDelete, onAdd, onCsvImport, onBackup,
         {read.length===0
           ?<EmptyRow label="Nessun libro letto"/>
           :<div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-            {sortBooks(read,sortBy).map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete}/>)}
+            {sagas.map(([sagaName,sagaBooks])=>(
+              <SagaAccordion key={sagaName} sagaName={sagaName} books={sagaBooks}
+                onEdit={onEdit} onDelete={onDelete} onToggleFavorite={onToggleFavorite} sortBy={sortBy}/>
+            ))}
+            {sortBooks(readWithoutSaga,sortBy).map(b=>(
+              <BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete} onToggleFavorite={onToggleFavorite}/>
+            ))}
           </div>
         }
       </div>
@@ -853,208 +941,10 @@ function LibrarySection({ books, onEdit, onDelete, onAdd, onCsvImport, onBackup,
         <div>
           <SectionHeader label="Abbandonati" count={abandoned.length}/>
           <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-            {sortBooks(abandoned,sortBy).map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete}/>)}
+            {sortBooks(abandoned,sortBy).map(b=><BookCard key={b.id} book={b} onEdit={onEdit} onDelete={onDelete} onToggleFavorite={onToggleFavorite}/>)}
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function OpenLibrarySearchModal({ onSelectBook, onClose }) {
-  const [query, setQuery] = useState("");
-  const [risultati, setRisultati] = useState([]);
-  const [caricamento, setCaricamento] = useState(false);
-  const [cercato, setCercato] = useState(false);
-
-  function mapGenre(subjects) {
-    if (!subjects || subjects.length === 0) return "";
-    const map = {
-      "narrativa":    "Narrativa", "fiction":       "Narrativa", "novel":         "Narrativa", "romanzo":       "Narrativa",
-      "saggistica":   "Saggistica","nonfiction":    "Saggistica","non-fiction":   "Saggistica","essay":         "Saggistica","saggio":        "Saggistica",
-      "fantasy":      "Fantasy",   "magic":         "Fantasy",   "dragons":       "Fantasy",   "wizards":       "Fantasy",
-      "science fiction":"Sci-Fi",  "sci-fi":        "Sci-Fi",    "space":         "Sci-Fi",    "dystopia":      "Sci-Fi",    "futuristic":    "Sci-Fi",
-      "thriller":     "Thriller",  "suspense":      "Thriller",  "spy":           "Thriller",  "crime":         "Thriller",
-      "horror":       "Horror",    "ghost":         "Horror",    "supernatural":  "Horror",
-      "historical":   "Storico",   "history":       "Storico",   "storico":       "Storico",   "ancient":       "Storico",   "medieval":      "Storico",
-      "romance":      "Romanzo",   "love":          "Romanzo",   "romantic":      "Romanzo",
-      "biography":    "Biografia", "autobiography": "Biografia", "memoir":        "Biografia", "biograph":      "Biografia",
-      "poetry":       "Poesia",    "poems":         "Poesia",    "poesia":        "Poesia",    "verse":         "Poesia",
-      "comics":       "Fumetti",   "graphic novel": "Fumetti",   "manga":         "Fumetti",   "comic":         "Fumetti",
-    };
-    for (const subject of subjects) {
-      const s = subject.toLowerCase();
-      for (const [key, val] of Object.entries(map)) {
-        if (s.includes(key)) return val;
-      }
-    }
-    return "";
-  }
-
-  async function cercaLibri(searchQuery) {
-    if (!searchQuery.trim()) return;
-    setCaricamento(true);
-    try {
-      const response = await fetch(
-        `https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=10&fields=title,author_name,number_of_pages_median,subject,cover_i,isbn,key`
-      );
-      const data = await response.json();
-      const libri = (data.docs || [])
-        .filter(libro => libro.title)
-        .map(libro => ({
-          title:    libro.title || "",
-          author:   (libro.author_name || [])[0] || "",
-          genre:    mapGenre(libro.subject || []),
-          pages:    libro.number_of_pages_median ? String(libro.number_of_pages_median) : "",
-          isbn:     (libro.isbn || [])[0] || "",
-          copertina: libro.cover_i
-            ? `https://covers.openlibrary.org/b/id/${libro.cover_i}-M.jpg`
-            : null,
-        }));
-      setRisultati(libri);
-      setCercato(true);
-    } catch (error) {
-      console.error("Errore ricerca:", error);
-      setRisultati([]);
-    } finally {
-      setCaricamento(false);
-    }
-  }
-
-  const handleCerca = (e) => {
-    e.preventDefault();
-    cercaLibri(query);
-  };
-
-  const inp = {
-    width: "100%", padding: "0.85rem 1rem",
-    background: "var(--card-bg)", border: "1px solid var(--border)",
-    borderRadius: 12, fontFamily: "'Lora',serif",
-    fontSize: "0.95rem", color: "var(--ink)", outline: "none",
-  };
-  const lbl = {
-    display: "block", fontSize: "0.68rem", fontFamily: "'DM Mono',monospace",
-    textTransform: "uppercase", letterSpacing: "0.1em",
-    color: "var(--muted)", marginBottom: "0.4rem", fontWeight: 500,
-  };
-
-  return (
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem",marginTop:"0.25rem"}}>
-        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.5rem",fontWeight:700,color:"var(--ink)"}}>
-          Cerca su Open Library
-        </h2>
-        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:"var(--muted)",fontSize:"1.3rem",lineHeight:1,padding:"0.2rem"}}>✕</button>
-      </div>
-
-      <form onSubmit={handleCerca} style={{marginBottom:"1.5rem",display:"flex",gap:"0.5rem"}}>
-        <div style={{flex:1}}>
-          <span style={lbl}>Titolo o autore</span>
-          <input
-            style={inp}
-            type="text"
-            placeholder="Es: Fourth Wing, Rebecca Yarros..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={caricamento}
-          style={{
-            alignSelf:"flex-end",
-            padding:"0.85rem 1.2rem",
-            background:"var(--burgundy)",
-            color:"#fff",
-            border:"none",
-            borderRadius:12,
-            cursor:caricamento?"default":"pointer",
-            fontFamily:"'Lora',serif",
-            fontSize:"0.95rem",
-            fontWeight:600,
-            opacity:caricamento?0.7:1,
-          }}
-        >
-          {caricamento?"...":"Cerca"}
-        </button>
-      </form>
-
-      {cercato&&risultati.length===0&&(
-        <div style={{textAlign:"center",color:"var(--muted)",fontStyle:"italic",padding:"1.5rem"}}>
-          Nessun risultato trovato. Prova un'altra ricerca.
-        </div>
-      )}
-
-      <div style={{display:"flex",flexDirection:"column",gap:"0.75rem",maxHeight:"320px",overflowY:"auto",marginBottom:"1rem"}}>
-        {risultati.map((libro,idx)=>(
-          <div
-            key={idx}
-            style={{
-              background:"var(--card-bg)",
-              borderRadius:12,
-              padding:"0.9rem",
-              display:"flex",
-              gap:"0.85rem",
-              alignItems:"flex-start",
-              border:"1px solid var(--border)",
-              cursor:"pointer",
-            }}
-            onClick={()=>onSelectBook(libro)}
-          >
-            {libro.copertina&&(
-              <img
-                src={libro.copertina}
-                alt={libro.title}
-                style={{width:40,height:56,borderRadius:6,objectFit:"cover",flexShrink:0}}
-              />
-            )}
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontWeight:600,fontSize:"0.95rem",color:"var(--ink)",marginBottom:"0.2rem",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                {libro.title}
-              </div>
-              {libro.author&&(
-                <div style={{fontSize:"0.8rem",color:"var(--muted)",marginBottom:"0.25rem",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                  {libro.author}
-                </div>
-              )}
-              <div style={{display:"flex",gap:"0.4rem",flexWrap:"wrap"}}>
-                {libro.genre&&(
-                  <span style={{fontSize:"0.65rem",fontFamily:"'DM Mono',monospace",
-                    padding:"0.1rem 0.45rem",background:"rgba(122,34,51,0.08)",
-                    borderRadius:20,color:"var(--burgundy)"}}>
-                    {libro.genre}
-                  </span>
-                )}
-                {libro.pages&&(
-                  <span style={{fontSize:"0.65rem",fontFamily:"'DM Mono',monospace",
-                    padding:"0.1rem 0.45rem",background:"rgba(28,22,17,0.06)",
-                    borderRadius:20,color:"var(--muted)"}}>
-                    {libro.pages} pag.
-                  </span>
-                )}
-              </div>
-            </div>
-            <div style={{fontSize:"1.2rem",color:"var(--muted)",flexShrink:0}}>→</div>
-          </div>
-        ))}
-      </div>
-
-      <button
-        onClick={onClose}
-        style={{
-          width:"100%",
-          padding:"0.9rem",
-          background:"none",
-          border:"1.5px solid var(--border)",
-          borderRadius:14,
-          cursor:"pointer",
-          fontFamily:"'Lora',serif",
-          fontSize:"0.95rem",
-          color:"var(--muted)",
-        }}
-      >
-        Annulla
-      </button>
     </div>
   );
 }
@@ -1244,28 +1134,23 @@ function CsvImportModal({ onImport, onClose, existingBooks }) {
    MAIN APP
 ══════════════════════════════════════════════════════════════════ */
 function BiblioTrack() {
-  const [books,     setBooks]           = useState(()=>loadBooks());
-  const [tab,       setTab]             = useState("home");
-  const [modal,     setModal]           = useState(null);
-  const [csvModal,  setCsvModal]        = useState(false);
-  const [openLibraryModal, setOpenLibraryModal] = useState(false);
-  const [openLibraryPreload, setOpenLibraryPreload] = useState(null);
-  const [toast,     setToast]           = useState(null);
-  const [lastBackup,setLastBackup]      = useState(()=>loadLastBackup());
+  const [books,     setBooks]      = useState(()=>loadBooks());
+  const [tab,       setTab]        = useState("home");
+  const [modal,     setModal]      = useState(null);
+  const [csvModal,  setCsvModal]   = useState(false);
+  const [toast,     setToast]      = useState(null);
+  const [lastBackup,setLastBackup] = useState(()=>loadLastBackup());
 
   const persist = useCallback(next=>{setBooks(next);saveBooks(next);},[]);
-
-  const handleOpenLibrarySelect = (libroData) => {
-    setOpenLibraryPreload(libroData);
-    setOpenLibraryModal(false);
-    setModal("add");
-  };
 
   const saveBook = book => {
     persist(books.some(b=>b.id===book.id)?books.map(b=>b.id===book.id?book:b):[...books,book]);
     setModal(null);
   };
   const deleteBook = id => { if(confirm("Eliminare questo libro?")) persist(books.filter(b=>b.id!==id)); };
+  const toggleFavorite = id => {
+    persist(books.map(b=>b.id===id?{...b,favorite:!b.favorite}:b));
+  };
   const handleCsvImport = (newBooks,added,skipped) => {
     persist(newBooks); setCsvModal(false);
     setToast(`✅ ${added} libro/i importati${skipped>0?`, ${skipped} saltati`:""}.`);
@@ -1301,7 +1186,7 @@ function BiblioTrack() {
   return (
     <>
       <FontLink/>
-      <div style={{minHeight:"100vh",background:"var(--bg)",paddingBottom:"5rem",paddingTop:"max(0px, env(safe-area-inset-top))",maxWidth:520,margin:"0 auto"}}>
+      <div style={{minHeight:"100vh",background:"var(--bg)",paddingBottom:"5rem",maxWidth:520,margin:"0 auto"}}>
         <main style={{padding:"1.5rem 1.1rem 0"}}>
 
           {tab==="home"&&(
@@ -1311,7 +1196,6 @@ function BiblioTrack() {
                 <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.9rem",fontWeight:700,
                   color:"var(--ink)",lineHeight:1.15}}>Calendario letture</h1>
               </div>
-              <ReadingCalendar books={books}/>
               <div>
                 <div style={{fontFamily:"'Lora',serif",fontWeight:700,fontSize:"1rem",
                   color:"var(--ink)",marginBottom:"0.6rem"}}>In lettura ora</div>
@@ -1325,15 +1209,17 @@ function BiblioTrack() {
                         fontStyle:"italic",fontSize:"inherit"}}>Aggiungine uno →</button>
                     </div>
                   :<div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-                    {reading.map(b=><BookCard key={b.id} book={b} onEdit={b=>setModal(b)} onDelete={deleteBook}/>)}
+                    {reading.map(b=><BookCard key={b.id} book={b} onEdit={b=>setModal(b)} onDelete={deleteBook} onToggleFavorite={toggleFavorite}/>)}
                   </div>
                 }
               </div>
+              <ReadingCalendar books={books}/>
             </div>
           )}
 
           {tab==="library"&&(
             <LibrarySection books={books} onEdit={b=>setModal(b)} onDelete={deleteBook}
+              onToggleFavorite={toggleFavorite}
               onAdd={()=>setModal("add")} onCsvImport={()=>setCsvModal(true)}
               onBackup={doBackup} backupText={backupText} backupUrgent={backupUrgent}/>
           )}
@@ -1356,7 +1242,7 @@ function BiblioTrack() {
                       fontStyle:"italic",fontSize:"inherit"}}>Aggiungine uno →</button>
                   </div>
                 :<div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-                    {wishlist.map(b=><BookCard key={b.id} book={b} onEdit={b=>setModal(b)} onDelete={deleteBook}/>)}
+                    {wishlist.map(b=><BookCard key={b.id} book={b} onEdit={b=>setModal(b)} onDelete={deleteBook} onToggleFavorite={toggleFavorite}/>)}
                   </div>
               }
             </div>
@@ -1371,25 +1257,15 @@ function BiblioTrack() {
 
         </main>
 
-        <div style={{
-          position:"fixed",bottom:"6.5rem",right:"1.25rem",
-          display:"flex",flexDirection:"column",gap:"0.5rem",alignItems:"flex-end",zIndex:100}}>
-          <button onClick={()=>setOpenLibraryModal(true)} title="Aggiungi da Open Library"
-            style={{width:48,height:48,borderRadius:"50%",
-              background:"rgba(122,34,51,0.9)",border:"none",color:"#fff",fontSize:"1.2rem",
-              cursor:"pointer",boxShadow:"0 2px 8px rgba(122,34,51,0.3)",
-              display:"flex",alignItems:"center",justifyContent:"center"}}>
-            🔍
-          </button>
-          <button onClick={()=>setModal("add")} style={{
-            width:52,height:52,borderRadius:"50%",
-            background:"var(--burgundy)",border:"none",
-            color:"#fff",fontSize:"1.5rem",cursor:"pointer",
-            boxShadow:"0 4px 16px rgba(122,34,51,0.4)",
-            display:"flex",alignItems:"center",justifyContent:"center"}}>
-            +
-          </button>
-        </div>
+        <button onClick={()=>setModal("add")} style={{
+          position:"fixed",bottom:"5.5rem",right:"1.25rem",
+          width:52,height:52,borderRadius:"50%",
+          background:"var(--burgundy)",border:"none",
+          color:"#fff",fontSize:"1.5rem",cursor:"pointer",
+          boxShadow:"0 4px 16px rgba(122,34,51,0.4)",
+          display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
+          +
+        </button>
 
         <nav style={{
           position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
@@ -1419,11 +1295,8 @@ function BiblioTrack() {
           ))}
         </nav>
 
-        <Modal open={!!modal} onClose={()=>{setModal(null);setOpenLibraryPreload(null);}}>
-          <BookForm initial={modal&&modal!=="add"?modal:null} openLibraryData={openLibraryPreload} onSave={saveBook} onCancel={()=>{setModal(null);setOpenLibraryPreload(null);}}/>
-        </Modal>
-        <Modal open={openLibraryModal} onClose={()=>setOpenLibraryModal(false)}>
-          <OpenLibrarySearchModal onSelectBook={handleOpenLibrarySelect} onClose={()=>setOpenLibraryModal(false)}/>
+        <Modal open={!!modal} onClose={()=>setModal(null)}>
+          <BookForm initial={modal&&modal!=="add"?modal:null} onSave={saveBook} onCancel={()=>setModal(null)}/>
         </Modal>
         <Modal open={csvModal} onClose={()=>setCsvModal(false)}>
           <CsvImportModal existingBooks={books} onImport={handleCsvImport} onClose={()=>setCsvModal(false)}/>
