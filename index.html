@@ -446,7 +446,7 @@ function BookCard({ book, onEdit, onDelete, onToggleFavorite }) {
               display:"flex",alignItems:"center",gap:"0.6rem",width:"100%",
               padding:"0.75rem 1rem",background:"none",border:"none",cursor:"pointer",
               fontFamily:"'Lora',serif",fontSize:"0.88rem",color:"var(--ink)",textAlign:"left"}}>
-              ✏️ Modifica
+              Modifica
             </button>
             {canFavorite&&(
               <button onClick={()=>{setShowMenu(false);onToggleFavorite(book.id);}} style={{
@@ -462,7 +462,7 @@ function BookCard({ book, onEdit, onDelete, onToggleFavorite }) {
               padding:"0.75rem 1rem",background:"none",border:"none",cursor:"pointer",
               fontFamily:"'Lora',serif",fontSize:"0.88rem",color:"#d32f2f",textAlign:"left",
               borderTop:"1px solid var(--border)"}}>
-              🗑️ Elimina
+              Elimina
             </button>
           </div>
         </>
@@ -479,7 +479,7 @@ function SagaAccordion({ sagaName, books, onEdit, onDelete, onToggleFavorite, so
 
   return (
     <div style={{background:"var(--card-bg)",borderRadius:14,
-      boxShadow:"0 1px 4px rgba(28,22,17,0.07)",overflow:"hidden"}}>
+      boxShadow:"0 1px 4px rgba(28,22,17,0.07)",overflow:"visible"}}>
       <button onClick={()=>setOpen(v=>!v)} style={{
         width:"100%",display:"flex",alignItems:"center",gap:"0.85rem",
         padding:"0.9rem 1rem",background:"none",border:"none",cursor:"pointer",textAlign:"left"}}>
