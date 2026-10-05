@@ -1,7 +1,8 @@
-const CACHE = "bibliotrack-v10";
+const CACHE = "bibliotrack-v11";
 const ASSETS = [
   "./",
   "./index.html",
+  "./app.js",
 ];
 
 self.addEventListener("install", e => {
