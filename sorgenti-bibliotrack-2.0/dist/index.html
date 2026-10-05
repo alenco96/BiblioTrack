@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>BiblioTrack</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.json"/>
+  <meta name="theme-color" content="#7A2233"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="BiblioTrack"/>
+  <link rel="apple-touch-icon" href="./icons/icon-192.png"/>
+  <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png"/>
+  <link rel="apple-touch-icon" sizes="512x512" href="./icons/icon-512.png"/>
+
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap"/>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --cream: #F2EDE4; --parchment: #EDE6D6; --ink: #1C1611;
+      --burgundy: #7A2233; --forest: #2D5016; --amber: #C4861A;
+      --muted: #8A7F74; --border: #DDD6CC;
+      --card-bg: #FFFFFF; --bg: #F2EDE4;
+    }
+    html, body, #root { height: 100%; }
+    body { background: var(--bg); font-family: 'Lora', serif; color: var(--ink);
+      padding-top: max(0px, env(safe-area-inset-top));
+      -webkit-tap-highlight-color: transparent; }
+    #root { height: auto; min-height: 100%; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--parchment); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    #splash {
+      position: fixed; inset: 0; background: #F2EDE4;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 9999;
+      font-family: serif; gap: 1rem; transition: opacity 0.4s ease;
+    }
+    #splash svg { width: 72px; height: 72px; }
+    #splash h1 { font-family: Georgia, serif; font-size: 2rem; color: #7A2233; margin: 0; letter-spacing: 0.04em; }
+    #splash p { color: #8A7F74; font-size: 0.85rem; margin: 0; }
+  </style>
+</head>
+<body>
+
+<div id="splash">
+  <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="72" height="72" rx="16" fill="#7A2233"/>
+    <path d="M36 20v32M36 20C36 20 26 17 18 20v28c8-3 18 0 18 0M36 20c0 0 10-3 18 0v28c-8-3-18 0-18 0" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <h1>BiblioTrack</h1>
+  <p>Caricamento in corso…</p>
+</div>
+
+<div id="root"></div>
+
+<script src="./app.js" defer></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(e => console.log("SW failed:", e));
+    });
+  }
+</script>
+</body>
+</html>
