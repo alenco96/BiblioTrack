@@ -1,4 +1,4 @@
-const CACHE = "bibliotrack-v15";
+const CACHE = "bibliotrack-v16";
 const COVERS = "bibliotrack-covers-v1"; // copertine Open Library: sopravvive agli aggiornamenti dell'app
 const SHELL = ["./", "./index.html", "./app.js"];
 
